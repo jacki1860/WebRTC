@@ -1,0 +1,6 @@
+aiortc
+pyaudio
+aiohttp
+numpy
+customtkinter
+packaging
