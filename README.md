@@ -1,76 +1,92 @@
-# WebRTC Audio Streamer (Python -> Unity)
+# WebRTC 音訊串流 (Python -> Unity)
 
-This project streams your microphone audio from a Python server to a Unity client using WebRTC.
+此專案使用 WebRTC 將您的麥克風音訊從 Python 伺服器串流傳輸到 Unity 用戶端。
 
-## Prerequisites
+## 先決條件
 
 - **Python 3.7+**
-- **Unity 2021.3+** (or any version supporting `com.unity.webrtc`)
-- **PortAudio** (System dependency for PyAudio)
+- **Unity 2021.3+** (或任何支援 `com.unity.webrtc` 的版本)
+- **PortAudio** (PyAudio 的系統相依套件)
     - **macOS**: `brew install portaudio`
     - **Linux**: `sudo apt-get install python3-pyaudio portaudio19-dev`
-    - **Windows**: Usually pre-compiled wheels are available, or use pipwin.
+    - **Windows**: 通常有預編譯的 wheel 可用，或者使用 pipwin。
 
-## Installation (Python Server)
+## 安裝 (Python 伺服器)
 
-1.  Create and activate a virtual environment:
+1.  建立並啟用虛擬環境：
     ```bash
     python3 -m venv venv
     source venv/bin/activate
     ```
 
-2.  Install dependencies:
+2.  安裝相依套件：
     ```bash
     pip install -r requirements.txt
     ```
-    *Note: If `pyaudio` fails to install, ensure you have `portaudio` installed.*
+    *注意：如果 `pyaudio` 安裝失敗，請確認您已安裝 `portaudio`。*
 
-## Usage
+## 使用方法
 
-### 1. Start the Server (GUI)
+### 1. 啟動伺服器 (GUI)
 
-The easiest way to use the server is via the new GUI:
+使用伺服器最簡單的方法是透過新的 GUI 介面：
 
 ```bash
 source venv/bin/activate
 python gui.py
 ```
 
-- Select your microphone from the dropdown.
-- (Optional) Change the port (default 8080).
-- Click **Start Server**.
-- The server will show the local IP address which you can use in Unity if testing on a different device.
+- 從下拉式選單中選擇您的麥克風。
+- (選用) 更改連接埠 (預設為 8080)。
+- 點擊 **Start Server** (啟動伺服器)。
+- 伺服器將顯示本機 IP 位址，如果您在不同的裝置上測試 Unity，可以使用此位址。
 
-### 1b. Start the Server (Command Line)
-Alternatively, you can still run the server from the command line:
+### 1b. 啟動伺服器 (命令列)
+或者，您仍然可以從命令列執行伺服器：
 
 ```bash
 source venv/bin/activate
 python server.py --port 8080
 ```
 
-### 2. Unity Client Setup
+### 1c. 同時執行多個伺服器 (進階)
+如果您需要同時串流多個音訊來源，可以開啟多個伺服器實例，但必須指定不同的連接埠。
 
-1.  Open your Unity Project.
-2.  Open **Window > Package Manager**.
-3.  Click `+` > **Add package from git URL...** and enter:
+**GUI 模式：**
+您可以開啟多個 `gui.py` 視窗，在每個視窗中分別設定不同的連接埠（例如 8080 和 8081），並選擇不同的麥克風來源，然後點擊啟動。
+
+**命令列模式：**
+開啟兩個終端機視窗，分別執行：
+```bash
+# 終端機 1
+python server.py --port 8080
+
+# 終端機 2
+python server.py --port 8081
+```
+
+### 2. Unity 用戶端設定
+
+1.  開啟您的 Unity 專案。
+2.  開啟 **Window > Package Manager**。
+3.  點擊 `+` > **Add package from git URL...** 並輸入：
     `com.unity.webrtc`
-4.  Wait for installation to complete.
-5.  Create a new specific GameObject (e.g., "WebRTCClient") in your scene.
-6.  Add an **AudioSource** component to it.
-    - Set `Loop` to true (optional, depends on stream behavior, but usually streaming is continuous).
-    - Ensure `Play On Awake` is checked.
-7.  Create a new C# script named `UnityClient.cs` and paste the content provided in this project.
-8.  Attach the `UnityClient` script to the GameObject.
-9.  Assign the **AudioSource** to the script's `Audio Source` field in the Inspector.
-10. Press **Play**. You should see "WebRTC Connection Established!" in the console and hear your microphone audio.
+4.  等待安裝完成。
+5.  在場景中建立一個新的 GameObject (例如 "WebRTCClient")。
+6.  為其新增一個 **AudioSource** 元件。
+    - 將 `Loop` 設定為 true (選用，取決於串流行為，但通常串流是連續的)。
+    - 確認已勾選 `Play On Awake`。
+7.  建立一個名為 `UnityClient.cs` 的新 C# 腳本，並貼上此專案中提供的內容。
+8.  將 `UnityClient` 腳本附加到該 GameObject 上。
+9.  在 Inspector 中將 **AudioSource** 指派給腳本的 `Audio Source` 欄位。
+10. 按下 **Play**。您應該會在主控台看到 "WebRTC Connection Established!" (WebRTC 連線已建立！)，並聽到您的麥克風音訊。
 
-## Troubleshooting
+## 疑難排解
 
-- **No Audio?** 
-    - Check Unity Console for errors.
-    - Verify your microphone is working on the server side.
-    - Ensure `com.unity.webrtc` package is installed.
-- **ICE Connection Failed?**
-    - Ensure no firewall blocks the connection.
-    - If running on different machines, allow port 8080 and UDP ports range (usually arbitrary for WebRTC, or configure ICE servers).
+- **沒有聲音？**
+    - 檢查 Unity Console 是否有錯誤。
+    - 確認伺服器端的麥克風是否正常運作。
+    - 確認已安裝 `com.unity.webrtc` 套件。
+- **ICE 連線失敗？**
+    - 確認沒有防火牆阻擋連線。
+    - 如果在不同機器上執行，請允許 8080 連接埠和 UDP 連接埠範圍 (WebRTC 通常是任意的，或是設定 ICE 伺服器)。

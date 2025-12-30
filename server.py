@@ -3,6 +3,9 @@ import argparse
 import logging
 import json
 import time
+import threading
+
+pyaudio_lock = threading.Lock()
 
 from aiohttp import web
 from aiortc import RTCPeerConnection, RTCSessionDescription, AudioStreamTrack
@@ -23,7 +26,8 @@ class MicrophoneStreamTrack(AudioStreamTrack):
 
     def __init__(self, device_index=None):
         super().__init__()
-        self.p = pyaudio.PyAudio()
+        with pyaudio_lock:
+            self.p = pyaudio.PyAudio()
         self.rate = 48000
         self.channels = 1
         self.format = pyaudio.paInt16
@@ -122,34 +126,49 @@ class WebRTCServer:
         self.site = None
 
     async def offer(self, request):
-        params = await request.json()
-        offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
+        try:
+            logger.info("Received offer request")
+            params = await request.json()
+            logger.info(f"Offer SDP received. Type: {params.get('type')}")
+            
+            offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
 
-        pc = RTCPeerConnection()
-        self.pcs.add(pc)
+            pc = RTCPeerConnection()
+            self.pcs.add(pc)
 
-        logger.info("Created for %s", request.remote)
+            logger.info("Created PC for %s", request.remote)
 
-        pc.addTrack(MicrophoneStreamTrack(self.device_index))
+            track = MicrophoneStreamTrack(self.device_index)
+            pc.addTrack(track)
+            logger.info(f"Added microphone track: {track}")
 
-        @pc.on("iceconnectionstatechange")
-        async def on_iceconnectionstatechange():
-            logger.info("ICE connection state is %s", pc.iceConnectionState)
-            if pc.iceConnectionState == "failed":
-                await pc.close()
-                self.pcs.discard(pc)
+            @pc.on("iceconnectionstatechange")
+            async def on_iceconnectionstatechange():
+                logger.info("ICE connection state is %s", pc.iceConnectionState)
+                if pc.iceConnectionState == "failed":
+                    await pc.close()
+                    self.pcs.discard(pc)
 
-        await pc.setRemoteDescription(offer)
+            logger.info("Setting remote description...")
+            await pc.setRemoteDescription(offer)
+            logger.info("Remote description set.")
 
-        answer = await pc.createAnswer()
-        await pc.setLocalDescription(answer)
-
-        return web.Response(
-            content_type="application/json",
-            text=json.dumps(
-                {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
-            ),
-        )
+            logger.info("Creating answer...")
+            answer = await pc.createAnswer()
+            logger.info("Answer created.")
+            
+            logger.info("Setting local description...")
+            await pc.setLocalDescription(answer)
+            logger.info("Local description set.")
+            return web.Response(
+                content_type="application/json",
+                text=json.dumps(
+                    {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
+                ),
+            )
+        except Exception as e:
+            logger.error(f"Error in offer handling: {e}", exc_info=True)
+            return web.Response(status=500, text=str(e))
 
     async def on_shutdown(self, app):
         coros = [pc.close() for pc in self.pcs]
